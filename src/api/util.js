@@ -1,4 +1,4 @@
-import { getNetwork } from './extension';
+import { getNetwork, stringifyData } from './extension';
 import provider from '../config/provider';
 import Loader from './loader';
 import { NETWORK_ID } from '../config/config';
@@ -91,6 +91,7 @@ export const networkNameToId = (name) => {
     [NETWORK_ID.testnet]: 0,
     [NETWORK_ID.preview]: 0,
     [NETWORK_ID.preprod]: 0,
+    [NETWORK_ID.custom]: 0,
   };
   return names[name];
 };
@@ -273,7 +274,7 @@ export const assetsToValue = async (assets) => {
     policyAssets.forEach((asset) => {
       assetsValue.insert(
         Loader.Cardano.AssetName.new(Buffer.from(asset.unit.slice(56), 'hex')),
-        Loader.Cardano.BigNum.from_str(asset.quantity)
+        Loader.Cardano.BigNum.from_str(asset.quantity.toString())
       );
     });
     multiAsset.insert(
@@ -282,7 +283,7 @@ export const assetsToValue = async (assets) => {
     );
   });
   const value = Loader.Cardano.Value.new(
-    Loader.Cardano.BigNum.from_str(lovelace ? lovelace.quantity : '0')
+    Loader.Cardano.BigNum.from_str(lovelace ? lovelace.quantity.toString() : '0')
   );
   if (assets.length > 1 || !lovelace) value.set_multiasset(multiAsset);
   return value;

@@ -71,6 +71,7 @@ export const NODE = {
   testnet: 'https://cardano-testnet.blockfrost.io/api/v0',
   preview: 'https://cardano-preview.blockfrost.io/api/v0',
   preprod: 'https://cardano-preprod.blockfrost.io/api/v0',
+  custom: 'http://localhost:8080/api/v1',
 };
 
 export const NETWORK_ID = {
@@ -78,6 +79,7 @@ export const NETWORK_ID = {
   testnet: 'testnet',
   preview: 'preview',
   preprod: 'preprod',
+  custom: 'custom',
 };
 
 export const NETWORKD_ID_NUMBER = {
@@ -85,6 +87,7 @@ export const NETWORKD_ID_NUMBER = {
   testnet: 0,
   preview: 0,
   preprod: 0,
+  custom: 0,
 };
 
 export const POPUP = {

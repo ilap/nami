@@ -35,7 +35,7 @@ export const getUserId = async (): Promise<string> => {
   return userId;
 };
 
-const getNetwork = (): Promise<{ id: 'mainnet' | 'preprod' | 'preview' }> =>
+const getNetwork = (): Promise<{ id: 'mainnet' | 'preprod' | 'preview' | 'custom' }> =>
   getStorage(STORAGE.network);
 
 export const getEventMetadata = async (

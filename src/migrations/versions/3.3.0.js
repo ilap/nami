@@ -39,6 +39,12 @@ const migration = {
         paymentAddr: currentAccount[NETWORK_ID.testnet].paymentAddr,
         rewardAddr: currentAccount[NETWORK_ID.testnet].rewardAddr,
       };
+
+      currentAccount[NETWORK_ID.custom] = {
+        ...networkDefault,
+        paymentAddr: currentAccount[NETWORK_ID.testnet].paymentAddr,
+        rewardAddr: currentAccount[NETWORK_ID.testnet].rewardAddr,
+      };
     }
 
     // add minAda
@@ -81,6 +87,7 @@ const migration = {
 
       delete currentAccount[NETWORK_ID.preview];
       delete currentAccount[NETWORK_ID.preprod];
+      delete currentAccount[NETWORK_ID.custom];
     }
 
     await setStorage({ [STORAGE.accounts]: storage });

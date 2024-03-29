@@ -339,6 +339,8 @@ const TxDetail = ({ displayInfo, network }) => {
                       return 'https://preview.cexplorer.io/tx/';
                     case NETWORK_ID.testnet:
                       return 'https://testnet.cexplorer.io/tx/';
+                    case NETWORK_ID.custom:
+                      return 'http://localhost:5173/transactions/';
                   }
                 })() + displayInfo.txHash
               }

@@ -478,6 +478,9 @@ const Network = () => {
               case NETWORK_ID.preview:
                 capture(Events.SettingsNetworkPreviewClick);
                 break;
+              case NETWORK_ID.custom:
+                capture(Events.SettingsNetworkCustomNodeClick);
+                break;
               default:
                 break;
             }
@@ -497,6 +500,7 @@ const Network = () => {
           <option value={NETWORK_ID.mainnet}>Mainnet</option>
           <option value={NETWORK_ID.preprod}>Preprod</option>
           <option value={NETWORK_ID.preview}>Preview</option>
+          <option value={NETWORK_ID.custom}>Custom Node</option>
         </Select>
       </Box>
       <Box height="8" />

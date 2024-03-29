@@ -163,32 +163,120 @@ export const getPoolMetadata = async (poolId) => {
   };
 };
 
+/**
+ * 
+ * Yaci endpoints
+N/A http://localhost:8080/api/v1/accounts/${currentAccount.rewardAddr}
+N/A http://localhost:8080/api/v1/addresses/${currentAccount.paymentKeyHashBech32}
+N/A http://localhost:8080/api/v1/addresses/${currentAccount.paymentKeyHashBech32}/extended
+N/A http://localhost:8080/api/v1/addresses/${currentAccount.paymentKeyHashBech32}/transactions?page=${paginate}&order=desc&count=${count}
+N/A http://localhost:8080/api/v1/addresses/${paymentKeyHashBech32}/transactions
+
+N/A http://localhost:8080/api/v1/assets/${refUnit}/addresses
+N/A http://localhost:8080/api/v1/assets/${unit} instead assets/unit/{unit}
+
+N/A http://localhost:8080/api/v1/pools/${poolId}/metadata
+N/A http://localhost:8080/api/v1/pools/${stake.pool_id}/metadata
+
+http://localhost:8080/api/v1/addresses/${currentAccount.paymentKeyHashBech32}/utxos?page=${page}
+http://localhost:8080/api/v1/addresses/${currentAccount.paymentKeyHashBech32}/utxos?page=${page}${limit}
+http://localhost:8080/api/v1/addresses/${owners[0].address}/utxos/${refUnit}
+http://localhost:8080/api/v1/blocks/${blockHashOrNumb}
+http://localhost:8080/api/v1/scripts/datum/${refUtxo?.data_hash}/cbor
+http://localhost:8080/api/v1/tx/submit
+http://localhost:8080/api/v1/txs/${txHash}
+http://localhost:8080/api/v1/txs/${txHash}/metadata
+http://localhost:8080/api/v1/txs/${txHash}/utxos
+ */
+export function stringifyData(data) {
+  return JSON.stringify(
+    data,
+    (key, value) => (typeof value === 'bigint' ? value.toString() : value),
+    '  '
+  );
+}
+
+export function mergeUTxOAmounts(utxos) {
+  const mergedAmounts = [];
+
+  // Iterate through each UTxO
+  for (const utxo of utxos) {
+    // Iterate through each amount in the UTxO
+    for (const amount of utxo.amount) {
+      const existingAmountIndex = mergedAmounts.findIndex(
+        (mergedAmount) => mergedAmount.unit === amount.unit
+      );
+
+      if (existingAmountIndex !== -1) {
+        // If the unit already exists in the mergedAmounts array, add the quantity
+        mergedAmounts[existingAmountIndex].quantity = (
+          BigInt(mergedAmounts[existingAmountIndex].quantity) +
+          BigInt(amount.quantity)
+        ).toString();
+      } else {
+        // If the unit doesn't exist in the mergedAmounts array, push it as a new object
+        mergedAmounts.push(amount);
+      }
+    }
+  }
+
+  return mergedAmounts;
+}
+
+export const getBalanceUtxos = async () => {
+  const currentAccount = await getCurrentAccount();
+  let result = [];
+  let page = 1;
+  const limit = `&count=100`;
+  while (true) {
+    let pageResult = await blockfrostRequest(
+      `/addresses/${currentAccount.paymentKeyHashBech32}/utxos?page=${page}${limit}`
+    );
+    if (pageResult.error) {
+      if (result.status_code === 400) throw APIError.InvalidRequest;
+      else if (result.status_code === 500) throw APIError.InternalError;
+      else {
+        return pageResult;
+      }
+    }
+    result = result.concat(pageResult);
+    if (pageResult.length <= 0) break;
+    page++;
+  }
+
+  return result;
+};
+
 export const getBalance = async () => {
   await Loader.load();
-  const currentAccount = await getCurrentAccount();
-  const result = await blockfrostRequest(
-    `/addresses/${currentAccount.paymentKeyHashBech32}`
-  );
+  //const currentAccount = await getCurrentAccount();
+  const result = await getBalanceUtxos(); //await blockfrostRequest(
+  //  `/addresses/${currentAccount.paymentKeyHashBech32}/utxos`
+  //);
   if (result.error) {
     if (result.status_code === 400) throw APIError.InvalidRequest;
     else if (result.status_code === 500) throw APIError.InternalError;
     else return Loader.Cardano.Value.new(Loader.Cardano.BigNum.from_str('0'));
   }
-  const value = await assetsToValue(result.amount);
+
+  const mergedAmount = mergeUTxOAmounts(await result);
+  const value = await assetsToValue(mergedAmount);
   return value;
 };
 
 export const getBalanceExtended = async () => {
-  const currentAccount = await getCurrentAccount();
-  const result = await blockfrostRequest(
-    `/addresses/${currentAccount.paymentKeyHashBech32}/extended`
-  );
+  //const currentAccount = await getCurrentAccount();
+  const result = await getBalanceUtxos(); // await blockfrostRequest(
+  //  `/addresses/${currentAccount.paymentKeyHashBech32}/utxos`
+  //);
   if (result.error) {
     if (result.status_code === 400) throw APIError.InvalidRequest;
     else if (result.status_code === 500) throw APIError.InternalError;
     else return [];
   }
-  return result.amount;
+  const mergedAmount = mergeUTxOAmounts(result);
+  //return result.amount;
+  return mergedAmount;
 };
 
 export const getFullBalance = async () => {
@@ -205,13 +293,13 @@ export const getFullBalance = async () => {
 export const getTransactions = async (paginate = 1, count = 10) => {
   const currentAccount = await getCurrentAccount();
   const result = await blockfrostRequest(
-    `/addresses/${currentAccount.paymentKeyHashBech32}/transactions?page=${paginate}&order=desc&count=${count}`
+    `/addresses/${currentAccount.paymentKeyHashBech32}/utxos?page=${paginate}&order=desc&count=${count}`
   );
   if (!result || result.error) return [];
   return result.map((tx) => ({
     txHash: tx.tx_hash,
-    txIndex: tx.tx_index,
-    blockHeight: tx.block_height,
+    txIndex: tx.ouptut_index,
+    // blockHeight: tx.block_height,
   }));
 };
 
@@ -325,8 +413,13 @@ export const getUtxos = async (amount = undefined, paginate = undefined) => {
 
   const address = await getAddress();
   let converted = await Promise.all(
-    result.map(async (utxo) => await utxoFromJson(utxo, address))
+    result.map(async (utxo) => {
+      const res = await utxoFromJson(utxo, address);
+      return res;
+    })
   );
+
+  console.log(` CONVERTED ${stringifyData(converted)}`);
   // filter utxos
   if (amount) {
     await Loader.load();
@@ -474,9 +567,10 @@ export const setNetwork = async (network) => {
   } else if (network.id === NETWORK_ID.preview) {
     id = NETWORK_ID.preview;
     node = NODE.preview;
-  } else {
-    id = NETWORK_ID.preprod;
-    node = NODE.preprod;
+  }
+  if (network.id === NETWORK_ID.custom) {
+    id = NETWORK_ID.custom;
+    node = NODE.custom;
   }
   if (network.node) node = network.node;
   if (currentNetwork && currentNetwork.id !== id)
@@ -660,7 +754,8 @@ export const isValidAddress = async (address) => {
       (addr.network_id() === 0 &&
         (network.id === NETWORK_ID.testnet ||
           network.id === NETWORK_ID.preview ||
-          network.id === NETWORK_ID.preprod))
+          network.id === NETWORK_ID.preprod ||
+          network.id === NETWORK_ID.custom))
     )
       return addr.to_bytes();
     return false;
@@ -672,7 +767,8 @@ export const isValidAddress = async (address) => {
       (addr.network_id() === 0 &&
         (network.id === NETWORK_ID.testnet ||
           network.id === NETWORK_ID.preview ||
-          network.id === NETWORK_ID.preprod))
+          network.id === NETWORK_ID.preprod ||
+          network.id === NETWORK_ID.custom))
     )
       return addr.to_address().to_bytes();
     return false;
@@ -690,7 +786,8 @@ const isValidAddressBytes = async (address) => {
       (addr.network_id() === 0 &&
         (network.id === NETWORK_ID.testnet ||
           network.id === NETWORK_ID.preview ||
-          network.id === NETWORK_ID.preprod))
+          network.id === NETWORK_ID.preprod ||
+          network.id === NETWORK_ID.custom))
     )
       return true;
     return false;
@@ -702,7 +799,8 @@ const isValidAddressBytes = async (address) => {
       (addr.network_id() === 0 &&
         (network.id === NETWORK_ID.testnet ||
           network.id === NETWORK_ID.preview ||
-          network.id === NETWORK_ID.preprod))
+          network.id === NETWORK_ID.preprod ||
+          network.id === NETWORK_ID.custom))
     )
       return true;
     return false;
@@ -1366,6 +1464,11 @@ export const createAccount = async (name, password, accountIndex = null) => {
         paymentAddr: paymentAddrTestnet,
         rewardAddr: rewardAddrTestnet,
       },
+      [NETWORK_ID.custom]: {
+        ...networkDefault,
+        paymentAddr: paymentAddrTestnet,
+        rewardAddr: rewardAddrTestnet,
+      },
       avatar: Math.random().toString(),
     },
   };
@@ -1460,6 +1563,11 @@ export const createHWAccounts = async (accounts) => {
         rewardAddr: rewardAddrTestnet,
       },
       [NETWORK_ID.preprod]: {
+        ...networkDefault,
+        paymentAddr: paymentAddrTestnet,
+        rewardAddr: rewardAddrTestnet,
+      },
+      [NETWORK_ID.custom]: {
         ...networkDefault,
         paymentAddr: paymentAddrTestnet,
         rewardAddr: rewardAddrTestnet,
@@ -1769,7 +1877,9 @@ export const getAsset = async (unit) => {
         const metadata = metadataDatum && Data.toJson(metadataDatum.fields[0]);
 
         asset.displayName = metadata.name;
-        asset.image = metadata.image ? linkToSrc(convertMetadataPropToString(metadata.image)) : '';
+        asset.image = metadata.image
+          ? linkToSrc(convertMetadataPropToString(metadata.image))
+          : '';
         asset.decimals = 0;
       } catch (_e) {
         asset.displayName = asset.name;

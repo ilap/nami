@@ -7,6 +7,7 @@ const networkToProjectId = {
   testnet: secrets.PROJECT_ID_TESTNET,
   preprod: secrets.PROJECT_ID_PREPROD,
   preview: secrets.PROJECT_ID_PREVIEW,
+  custom: secrets.PROJECT_ID_CUSTOM,
 };
 
 export default {
